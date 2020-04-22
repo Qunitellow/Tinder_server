@@ -1,0 +1,10 @@
+1.влево - login/dislike (8.users/next - следующая)
+2.вправо - login/like (users/next - следующая)
+
+??? - 3.анкета (    shell> 4.войти - /login ("/" - редирект в "/login")
+                    shell> 5.новая - /register
+                    shell> 6.изменить - login/edit
+                    shell> 7.удалить - login/edit/delete
+                    )
+
+9.любимцы - users/like/matching (10.выбор любимца - users/like/matching/{id})
