@@ -22,5 +22,4 @@ public class Dislike {
         this.dislike_by = dislike_by;
         this.dislike_to = dislike_to;
     }
-
 }

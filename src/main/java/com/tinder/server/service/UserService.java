@@ -31,7 +31,6 @@ public class UserService {
     }
 
     public void put_one(User user) {
-        user.setPassword(user.getPassword());
         userRepo.save(user);
     }
 
@@ -39,9 +38,9 @@ public class UserService {
         userRepo.deleteById(id);
     }
 
-    public boolean usernameIsExists(User newUser) {
+    public boolean usernameIsExists(String username) {
         for (User user : get_all()) {
-            if (user.getUsername().equals(newUser.getUsername())) {
+            if (user.getUsername().equals(username)) {
                 return true;
             }
         }

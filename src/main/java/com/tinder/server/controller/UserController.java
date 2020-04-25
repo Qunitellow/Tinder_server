@@ -2,7 +2,7 @@ package com.tinder.server.controller;
 
 import com.tinder.server.model.Dislike;
 import com.tinder.server.model.Like;
-import com.tinder.server.model.ServerResponse;
+import com.tinder.server.external.Response;
 import com.tinder.server.model.User;
 import com.tinder.server.repository.UsersRepository;
 import com.tinder.server.service.DislikeService;
@@ -15,13 +15,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.*;
+
 import static com.tinder.server.external.Support.*;
 
 @RestController
 public class UserController {
 
-    private final Set<String> loggedUsers = new HashSet<>();
+    private final Set<String> loggedUsersname = new HashSet<>();
     private final Set<User> viewedFemaleProfiles = new HashSet<>();
     private final Set<User> viewedMaleProfiles = new HashSet<>();
     private final Set<User> profilesForUnauthorizedUser = new HashSet<>();
@@ -43,88 +45,86 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Object> addUser(@RequestBody User newUser) {
+    public ResponseEntity<Object> addUser(@RequestBody Map<String, String> params) {
         log.debug("Регистрация нового пользователя...");
-        ServerResponse serverResponse;
-        if (userService.usernameIsExists(newUser)) {
+        Response response;
+        if (userService.usernameIsExists(params.get("username"))) {
             log.debug("Имя пользователя занято");
-            serverResponse = new ServerResponse(false, "Имя пользователя занято");
-        } else if (!isValidUserInfo(newUser)) {
+            response = new Response(false, "Имя пользователя занято");
+        } else if (!isValidUserInfo(params)) {
             log.debug("Введены некорректные данные");
-            serverResponse = new ServerResponse(false, "Введены некорректные данные");
+            response = new Response(false, "Введены некорректные данные");
         } else {
             try {
-                userService.put_one(newUser);
+                userService.put_one(new User(params.get("gender"), params.get("username"),
+                        params.get("password"), params.get("profileMessage")));
                 log.debug("Регистрация прошла успешно");
-                serverResponse = new ServerResponse(true, newUser.getId());
+                response = new Response(true,
+                        userService.getUserByName(params.get("username")).getId());
             } catch (DataIntegrityViolationException e) {
-                serverResponse = new ServerResponse(false, "Ошибка сохранения учетной записи в БД");
+                response = new Response(false, "Ошибка сохранения учетной записи в БД");
             }
         }
-        log.debug("Ответ на запрос о регистрации: {}: {}", serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition().toString(), HttpStatus.CREATED) :
-                new ResponseEntity<>(serverResponse.getAddition().toString(), HttpStatus.BAD_REQUEST);
-
+        log.debug("Ответ на запрос о регистрации: {}: {}", response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>(response.getAddition(), HttpStatus.CREATED) :
+                new ResponseEntity<>(response.getAddition(), HttpStatus.BAD_REQUEST);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Object> logInUser(@RequestBody User logInUser) {
-        ServerResponse serverResponse;
+    public ResponseEntity<Object> logInUser(@RequestBody Map<String, String> params) {
+        Response response;
         log.debug("Логин пользователя");
-        User existingUser = usersRepo.findByUsername(logInUser.getUsername()).orElse(null);
+        User existingUser = usersRepo.findByUsername(params.get("username")).orElse(null);
         if (existingUser == null) {
-            serverResponse = new ServerResponse(false, "Пользователя с именем " +
-                    logInUser.getUsername() + " не существует");
+            response = new Response(false, "Пользователя с именем " +
+                    params.get("username") + " не существует");
             log.debug("Пользователя не существует");
         } else {
-            log.debug("Пользователь {} существует: ", logInUser.getUsername());
-            if (existingUser.getPassword().equals(logInUser.getPassword())) {
-                loggedUsers.add(existingUser.getUsername());
-                serverResponse = new ServerResponse(true, "Авторизация прошла успешно");
-                log.debug("Пользователь {} авторизован: ", logInUser.getUsername());
+            log.debug("Пользователь {} существует: ", params.get("username"));
+            if (existingUser.getPassword().equals(params.get("password"))) {
+                loggedUsersname.add(existingUser.getUsername());
+                response = new Response(true, existingUser.getId());
+                log.debug("Пользователь {} авторизован: ", params.get("username"));
             } else {
-                serverResponse = new ServerResponse(false, "Введенный пароль неверный");
+                response = new Response(false, "Введенный пароль неверный");
                 log.debug("Неверный пароль");
             }
         }
-        log.debug("Ответ на запрос об авторизации: {}: {}", serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition().toString(), HttpStatus.OK) :
-                new ResponseEntity<>(serverResponse.getAddition().toString(), HttpStatus.UNAUTHORIZED);
+        log.debug("Ответ на запрос об авторизации: {}: {}", response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>(response.getAddition().toString(), HttpStatus.OK) :
+                new ResponseEntity<>(response.getAddition().toString(), HttpStatus.UNAUTHORIZED);
     }
 
-    //newUser -- источник данных get
-    //user -- пункт назначения set
-    // user.set(newUser.get())
-
-    @PostMapping("login/edit")
-    public ResponseEntity<Object> changeDescription(@RequestBody User logInUser) {
-        ServerResponse serverResponse;
+    @PutMapping("login/edit")
+    public ResponseEntity<Object> changeDescription(@RequestBody String message) {
         log.debug("Редактирование информации о себе...");
-        if (loggedUsers.contains(logInUser.getUsername())) {
-            User existingUser = userService.getUserByName(logInUser.getUsername());
-            if (existingUser != null && isValidDescription(logInUser)) {
+        Response response;
+        String currentUserName = loggedUsersname.iterator().next();
+        if (!loggedUsersname.isEmpty()) {
+            User currentUser = userService.getUserByName(currentUserName);
+            if (currentUser != null && isValidDescription(message)) {
                 try {
-                    usersRepo.editingDescription(logInUser.getId(), logInUser.getDescription());
-                    serverResponse = new ServerResponse(true, "информация о себе успешно обновлена");
+                    usersRepo.editDescription(currentUser.getId(), message);
+                    response = new Response(true, currentUser.getUsername() + " " + currentUser.getDescription());
                     log.debug("Описание изменено");
                 } catch (DataIntegrityViolationException e) {
-                    serverResponse = new ServerResponse(false, "Ошибка сохранения информации о себе в БД");
+                    response = new Response(false, "Ошибка сохранения информации о себе в БД");
                     log.debug("Не удалось изменить информацию о себе");
                 }
             } else {
-                serverResponse = new ServerResponse(false, "Введены некорректные данные");
+                response = new Response(false, "Введены некорректные данные");
                 log.debug("Введены некорректные данные");
             }
         } else {
-            serverResponse = new ServerResponse(false, "Пользователь не авторизован");
+            response = new Response(false, "Пользователь не авторизован");
             log.debug("Пользователь не авторизован");
         }
-        log.debug("Ответ на запрос об обновлении информации о себе: {}: {}", serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition().toString(), HttpStatus.OK) :
-                new ResponseEntity<>(serverResponse.getAddition().toString(), HttpStatus.BAD_REQUEST);
+        log.debug("Ответ на запрос об обновлении информации о себе: {}: {}", response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>(response.getAddition().toString(), HttpStatus.OK) :
+                new ResponseEntity<>(response.getAddition().toString(), HttpStatus.BAD_REQUEST);
     }
 
     //Пример контроллера:
@@ -141,220 +141,204 @@ public class UserController {
     //@RequestParam : переменная baz будет содержать значение параметра запроса baz
 
     @PostMapping("login/edit/delete")
-    public ResponseEntity<Object> deleteUser(@RequestBody User logInUser) {
-        ServerResponse serverResponse;
-        if (loggedUsers.contains(logInUser.getUsername())) {
+    public ResponseEntity<String> deleteUser(@RequestBody Long id) {
+        Response response;
+        User currentUser = userService.getUserById(id);
+        if (currentUser != null) {
             log.debug("Удаление учетной записи пользователя...");
-            loggedUsers.remove(logInUser.getUsername());
-            usersRepo.deleteUser(logInUser.getUsername());
-            serverResponse = new ServerResponse(true, "Учетная запись успешно удалена");
+            loggedUsersname.remove(currentUser.getUsername());
+            usersRepo.deleteUserById(id);
+            response = new Response(true, "|| Ваша анкета удалена безвозвратно ||");
             log.debug("Удаление успешно");
         } else {
-            serverResponse = new ServerResponse(false, "Ошибка удаления. Данный пользователь не авторизован");
+            response = new Response(false, "Ошибка удаления. Данный пользователь не авторизован");
             log.debug("Данный пользователь не авторизован");
         }
         log.debug("Ответ на запрос об удалении учетной записи пользователя: {}: {}",
-                serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition().toString(), HttpStatus.OK) :
-                new ResponseEntity<>(serverResponse.getAddition().toString(), HttpStatus.BAD_REQUEST);
+                response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>(response.getAddition().toString(), HttpStatus.OK) :
+                new ResponseEntity<>(response.getAddition().toString(), HttpStatus.BAD_REQUEST);
     }
 
-    @GetMapping("users/like/matching")
-    public ResponseEntity<Iterable<User>> matchedUsersByLikes() {
-        log.debug("Получение пользователей ответивших взаимной симпатией...");
-        ServerResponse serverResponse;
-        Iterable<User> likedUsers;
-        User currentUser = userService.getUserByName(loggedUsers.iterator().next());
+    @PostMapping("users/like/matching")
+    public ResponseEntity<Map<Integer, String>> matchedUsersByLikes(@RequestBody Map<String, String> likedUsersMap) {
+        log.debug("Получение списка пользователей ответивших взаимной симпатией...");
+        Response response;
+        Iterable<User> likeMatchUsers;
+        User currentUser = userService.getUserByName(loggedUsersname.iterator().next());
         if (currentUser != null) {
-            likedUsers = usersRepo.getLikeMatchedUsers(currentUser.getId());
-            serverResponse = new ServerResponse(true, likedUsers);
-            log.debug("Список понравившихся пользователей получен");
+            likeMatchUsers = usersRepo.getAllLikeMatchedUsers(Long.parseLong(likedUsersMap.get("id")));
+            response = new Response(true, likeMatchUsersAsMap(likeMatchUsers));
+            log.debug("Список лайк-матчей получен");
         } else {
-            serverResponse = new ServerResponse(false, "Вы не авторизованы");
+            response = new Response(false, "Вы не авторизованы");
             log.debug("Вы не авторизованы");
         }
-        log.debug("Ответ на запрос о получении списка понравившихся юзерков: {}: {}",
-                serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>((Iterable<User>) serverResponse.getAddition(), HttpStatus.OK) :
-                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        log.debug("Ответ на запрос о получении списка лайк-матчей: {}: {}",
+                response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>((Map<Integer, String>) response.getAddition(), HttpStatus.CREATED) :
+                new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
     }
 
-    @GetMapping("users/dislike/matching")
-    public ResponseEntity<Iterable<User>> matchedUsersByDislikes() {
-        log.debug("Получение пользователей ответивших взаимной антипатией...");
-        ServerResponse serverResponse;
-        User currentUser = userService.getUserByName(loggedUsers.iterator().next());
-        if (currentUser != null) {
-            Iterable<User> dislikedUsers = usersRepo.getDislikeMatchedUsers(currentUser.getId());
-            serverResponse = new ServerResponse(true, dislikedUsers);
-            log.debug("Список НЕпонравившихся пользователей получен");
-        } else {
-            serverResponse = new ServerResponse(false, "Вы не авторизованы");
-            log.debug("Вы не авторизованы");
-        }
-        log.debug("Ответ на запрос о получении списка НЕпонравившихся юзерков: {}: {}",
-                serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>((Iterable<User>) serverResponse.getAddition(), HttpStatus.OK) :
-                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+    public Map<Integer, String> likeMatchUsersAsMap(Iterable<User> likeMatchUsers) {
+        int i = 0;
+        Map<Integer, String> likedUsersMap = new HashMap<>();
+        likeMatchUsers.forEach(user -> likedUsersMap.put(i + 1, user.getUsername()));
+        return likedUsersMap;
     }
+
 
     @GetMapping("users/like/matching/{id}")
-    public ResponseEntity<Object> getLikedUser(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> getLikedUser(@RequestParam Long id) {
+//    public ResponseEntity<Object> getLikedUser(@PathVariable Long id) {
         log.debug("Выбор пользователя из списка понравившихся...");
-        ServerResponse serverResponse;
+        Response response;
         User matchedUser = userService.getUserById(id);
         if (matchedUser != null) {
-            serverResponse = new ServerResponse(true, new User(matchedUser.getUsername(), matchedUser.getDescription()));
+            Map<String, String> selectedProfile = new HashMap<>();
+            selectedProfile.put("username", matchedUser.getUsername());
+            selectedProfile.put("profileMessage", matchedUser.getDescription());
+            response = new Response(true, selectedProfile);
             log.debug("Получен понравившийся юзер");
         } else {
-            serverResponse = new ServerResponse(false, "Не удалось получить информацию о понравившемся юзере");
-            log.debug("Не удалось получить информацию о понравившемся юзере");
+            response = new Response(false, "Такого юзера нет");
+            log.debug("Такого юзера нет");
         }
         log.debug("Ответ на запрос о получении понравившегося юзера: {}: {}",
-                serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition(), HttpStatus.OK) :
+                response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>((Map<String, String>) response.getAddition(), HttpStatus.OK) :
                 new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
-    }
-
-    @GetMapping("users/dislike/matching/{id}")
-    public ResponseEntity<Object> getDislikedUser(@PathVariable Long id) {
-        log.debug("Выбор пользователя из списка НЕпонравившихся...");
-        ServerResponse serverResponse;
-        User matchedUser = userService.getUserById(id);
-        if (matchedUser != null) {
-            serverResponse = new ServerResponse(true, new User(matchedUser.getUsername(), matchedUser.getDescription()));
-            log.debug("Получен НЕпонравившийся юзер");
-        } else {
-            serverResponse = new ServerResponse(false, "Не удалось получить информацию о НЕпонравившемся юзере");
-            log.debug("Не удалось получить информацию о НЕпонравившемся юзере");
-        }
-        log.debug("Ответ на запрос о получении НЕпонравившегося юзера: {}: {}",
-                serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition(), HttpStatus.OK) :
-                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
-    }
-
-    @PostMapping("login/like")//вправо
-    public ResponseEntity<Object> putLike(@RequestBody User likedUser) {
-        log.debug("Проявление симпатии...");
-        ServerResponse serverResponse;
-        String loggedUsername = loggedUsers.iterator().next();
-        User loggedUser = usersRepo.findByUsername(loggedUsername).orElse(null);
-
-        if (loggedUser != null) {
-            Like like = new Like(loggedUser.getId(), likedUser.getId());
-            likeService.put_one(like);
-            log.debug("добавили в БД лайк");
-            //юзеры, с которыми взаимно
-            Iterable<User> matchingUsers = usersRepo.getLikeMatchedUsers(loggedUser.getId());
-            //из них выбираем того, кого сейчас лайкнули
-            User matchUser = userService.getUsersAsList(matchingUsers).stream()
-                    .filter(user -> likedUser.getId().equals(user.getId()))
-                    .findFirst()
-                    .orElse(null);
-            if (matchUser != null) {
-                log.debug("юзер ответил взаимностью");
-                serverResponse = new ServerResponse(true, matchUser.getUsername() + " ответил(а) мне взаимностью!");
-            } else {
-                log.debug("юзер не ответил взаимностью");
-                serverResponse = new ServerResponse(false, "юзер НЕ ответил(а) мне взаимностью :'( ");
-            }
-        } else {
-            log.debug("юзер не авторизован");
-            serverResponse = new ServerResponse(false, "Неавторизованные юзеры не могут лайкать");
-        }
-        log.debug("Ответ на запрос о постановке лайка юзеру: {}: {}",
-                serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition(), HttpStatus.CREATED) :
-                new ResponseEntity<>(serverResponse.getAddition(), HttpStatus.BAD_REQUEST);
     }
 
     @PostMapping("login/dislike")//влево
-    public ResponseEntity<Object> putDislike(@RequestBody User dislikedUser) {
+    public ResponseEntity<Object> putDislike(@RequestBody String s) {
+//    public ResponseEntity<Object> putDislike(@RequestBody Long id) {
         log.debug("Проявление антипатии...");
-        ServerResponse serverResponse;
-        String loggedUsername = loggedUsers.iterator().next();
-        User loggedUser = usersRepo.findByUsername(loggedUsername).orElse(null);
-
-        if (loggedUser != null) {
-            Dislike dislike = new Dislike(loggedUser.getId(), dislikedUser.getId());
+        String loggedUsername = loggedUsersname.iterator().next();
+        Response response;
+//        User loggedUser = userService.getUserById(id);
+        if (loggedUsername != null) {
+//        if (loggedUser != null) {
+            User loggedUser = userService.getUserByName(loggedUsername);
+            User userForDislike = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(loggedUser.getId()), loggedUser);
+            Dislike dislike = new Dislike(loggedUser.getId(), userForDislike.getId());
             dislikeService.put_one(dislike);
             log.debug("добавили в БД дизлайк");
+
             //юзеры, с которыми взаимно
-            Iterable<User> matchingUsers = usersRepo.getDislikeMatchedUsers(loggedUser.getId());
-            //из них выбираем того, кого сейчас лайкнули
+            Iterable<User> matchingUsers = usersRepo.getAllDislikeMatchedUsers(loggedUser.getId());
+            //из них выбираем того, кого сейчас дизлайкнули
             User matchUser = userService.getUsersAsList(matchingUsers).stream()
-                    .filter(user -> dislikedUser.getId().equals(user.getId()))
+                    .filter(user -> userForDislike.getId().equals(user.getId()))
                     .findFirst()
                     .orElse(null);
+
             if (matchUser != null) {
                 log.debug("юзер ответил взаимностью");
-                serverResponse = new ServerResponse(true, matchUser.getUsername() + " ответил(а) мне взаимностью!");
+                response = new Response(true, "|| Вы НЕлюбимы! ||");
             } else {
                 log.debug("юзер не ответил взаимностью");
-                serverResponse = new ServerResponse(false, "юзер НЕ ответил(а) мне взаимностью :'( ");
+                response = new Response(true, "юзер НЕ ответил(а) взаимностью :'( ");
             }
         } else {
             log.debug("юзер не авторизован");
-            serverResponse = new ServerResponse(false, "Неавторизованные юзеры не могут дизлайкать");
+            response = new Response(false, "Пожалуйста авторизуйтесь чтобы другие люди видели ваши дизлайки" + s);
         }
-        log.debug("Ответ на запрос о постановке дизлайка юзеру: {}: {}",
-                serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition(), HttpStatus.CREATED) :
-                new ResponseEntity<>(serverResponse.getAddition(), HttpStatus.BAD_REQUEST);
+        log.debug("Ответ на запрос о постановке лайка юзеру: {}: {}",
+                response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>(response.getAddition(), HttpStatus.CREATED) :
+                new ResponseEntity<>(response.getAddition(), HttpStatus.UNAUTHORIZED);
     }
 
-    @GetMapping("users/next")
-    public ResponseEntity<Object> nextProfile(@RequestParam(value = "id") Long id) {
+    @PostMapping("login/like")//вправо
+    public ResponseEntity<Object> putLike(@RequestBody String s) {
+        log.debug("Проявление симпатии...");
+        Response response;
+        String loggedUsername = loggedUsersname.iterator().next();
+//        User loggedUser = userService.getUserById(id);
+
+        if (loggedUsername != null) {
+            User loggedUser = userService.getUserByName(loggedUsername);
+            User userForLike = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(loggedUser.getId()), loggedUser);
+            Like like = new Like(loggedUser.getId(), userForLike.getId());
+            likeService.put_one(like);
+            log.debug("добавили в БД лайк");
+
+            //юзеры, с которыми взаимно
+            Iterable<User> matchingUsers = usersRepo.getAllLikeMatchedUsers(loggedUser.getId());
+            //из них выбираем того, кого сейчас лайкнули
+            User matchUser = userService.getUsersAsList(matchingUsers).stream()
+                    .filter(user -> userForLike.getId().equals(user.getId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (matchUser != null) {
+                log.debug("юзер ответил взаимностью");
+                response = new Response(true, "|| Вы любимы ||");
+            } else {
+                log.debug("юзер не ответил взаимностью");
+                response = new Response(true, "юзер НЕ ответил(а) взаимностью :'( ");
+            }
+        } else {
+            log.debug("юзер не авторизован");
+            response = new Response(false, "Неавторизованные юзеры не могут лайкать" + s);
+        }
+        log.debug("Ответ на запрос о постановке лайка юзеру: {}: {}",
+                response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>(response.getAddition(), HttpStatus.CREATED) :
+                new ResponseEntity<>(response.getAddition(), HttpStatus.UNAUTHORIZED);
+    }
+
+
+    @PostMapping("login/users/next")
+    public ResponseEntity<Object> nextProfile(@RequestBody String s) {
         log.debug("Получение следующего профиля...");
-        ServerResponse serverResponse;
+        Response response;
         User profileToDisplay;
-        String loggedUsername = loggedUsers.iterator().next();
+        String loggedUsername = loggedUsersname.iterator().next();
         User loggedUser = usersRepo.findByUsername(loggedUsername).orElse(null);
+
         if (loggedUser == null) {
-            log.debug("Получение следующего профиля с НЕавторизованного юзера...");
-            profileToDisplay = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(id), null);
+            log.debug("Получение для показа следующего профиля с НЕавторизованного юзера...");
+            profileToDisplay = getUnviewedProfile(usersRepo.findAll(), null);
             profilesForUnauthorizedUser.add(profileToDisplay);
-            if (profilesForUnauthorizedUser.size() == usersRepo.getNumberOfUsersAnyGender(id)) {
+            if (profilesForUnauthorizedUser.size() == usersRepo.getNumberOfAllUsers()) {
                 log.debug("Просмотрены все профили");
                 profilesForUnauthorizedUser.clear();
             }
-            log.debug("Показан следующий случайный профиль. Вы не авторизованы");
-            serverResponse = new ServerResponse(false, "Показан следующий случайный профиль. Вы не авторизованы");
+            log.debug("Показан следующий случайный профиль. Вы не авторизованы" + s);
+            response = new Response(false, profileToDisplay.getUsername() + " " + profileToDisplay.getDescription());
         } else {
-            log.debug("Получение следующего профиля с авторизованного юзера...");
+            log.debug("Получение для показа следующего профиля с авторизованного юзера...");
             //исключить юзеров, удовлетворяющих кретериям, но которых уже показывали
-            profileToDisplay = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(id), loggedUser);
+            profileToDisplay = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(loggedUser.getId()), loggedUser);
             if ((profileToDisplay.getGender()).equals("сударыня")) {
                 viewedFemaleProfiles.add(profileToDisplay);
-                if (viewedFemaleProfiles.size() == usersRepo.getNumberOfUsers(id, "сударыня")) {
+                if (viewedFemaleProfiles.size() == usersRepo.getNumberOfUsers(loggedUser.getId(), "сударыня")) {
                     log.debug("Просмотрены все женские профили");
                     viewedFemaleProfiles.clear();
                 }
             } else if ((profileToDisplay.getGender()).equals("сударь")) {
                 viewedMaleProfiles.add(profileToDisplay);
-                if (viewedMaleProfiles.size() == usersRepo.getNumberOfUsers(id, "сударь")) {
+                if (viewedMaleProfiles.size() == usersRepo.getNumberOfUsers(loggedUser.getId(), "сударь")) {
                     log.debug("Просмотрены все мужские профили");
                     viewedMaleProfiles.clear();
                 }
             }
             log.debug("Показан следующий профиль противоположного пола");
-            serverResponse = new ServerResponse(true, "Показан следующий профиль противоположного пола");
+            response = new Response(true, profileToDisplay.getUsername() + " " + profileToDisplay.getDescription());
         }
         log.debug("Ответ на запрос для просмотра следующего профиля: {}: {}",
-                serverResponse.isStatus(), serverResponse.getAddition());
-        return serverResponse.isStatus() ?
-                new ResponseEntity<>(serverResponse.getAddition(), HttpStatus.OK) :
-                new ResponseEntity<>(serverResponse.getAddition(), HttpStatus.UNAUTHORIZED);
+                response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>(response.getAddition(), HttpStatus.OK) :
+                new ResponseEntity<>(response.getAddition(), HttpStatus.UNAUTHORIZED);
     }
-
 
 
     public User getUnviewedProfile(Iterable<User> profilesToDisplay, User loggedUser) {

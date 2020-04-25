@@ -15,14 +15,11 @@ public class User {
     @Column(name = "id")
     private Long id;
     @Column(name = "gender")
-//    private UserGender gender;
     private String gender;
     @Column(name = "username")
     private String username;
     @Column(name = "password")
     private String password;
-//    @Column(name = "roles")
-//    private UserLevel userLvl;
     @Column(name = "description")
     private String description;
 
@@ -31,11 +28,6 @@ public class User {
         this.gender = gender;
         this.username = username;
         this.password = password;
-        this.description = description;
-    }
-
-    public User(String username, String description) {
-        this.username = username;
         this.description = description;
     }
 }
