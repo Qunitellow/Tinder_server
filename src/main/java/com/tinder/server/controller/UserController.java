@@ -361,33 +361,66 @@ public class UserController {
     }
 
 
-    //только для получения в клиенте авторизованного юзера
-    @GetMapping("login/currentuser")
-    public ResponseEntity<Map<String, String>> getCurrentUser(@RequestParam int num) {///убрать Requestparam
+    //для получения в клиенте авторизованного юзера
+    @PostMapping("login/currentuser")
+    public ResponseEntity<User> getCurrentUser(@RequestBody Integer num) {
         Response response;
         log.info(num+"");
         User currentUser = userService.getUserByName(nameLoggedUser);
         if (currentUser == null) {
-            response = new Response(false);
+            response = new Response(false, null);
         } else {
-            Map<String, String> currentUserAsMap = new HashMap<>();
-            currentUserAsMap.put("id", currentUser.getId()+"");
-            currentUserAsMap.put("gender", currentUser.getGender());
-            currentUserAsMap.put("username", currentUser.getUsername());
-            currentUserAsMap.put("password", currentUser.getPassword());
-            currentUserAsMap.put("description", currentUser.getDescription());
-
-            response = new Response(true, currentUserAsMap);
+            response = new Response(true, currentUser);
         }
         return response.isStatus() ?
-                new ResponseEntity<>((Map<String, String>) response.getAddition(), HttpStatus.OK) :
-                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+                new ResponseEntity<>((User) response.getAddition(), HttpStatus.OK) :
+                new ResponseEntity<>((User) response.getAddition(), HttpStatus.BAD_REQUEST);
     }
 }
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//    @GetMapping("login/currentuser")
+//    public ResponseEntity<Map<String, String>> getCurrentUser(@RequestParam int num) {
+//        Response response;
+//        log.info(num+"");
+//        User currentUser = userService.getUserByName(nameLoggedUser);
+//        if (currentUser == null) {
+//            response = new Response(false);
+//        } else {
+//            Map<String, String> currentUserAsMap = new HashMap<>();
+//            currentUserAsMap.put("id", currentUser.getId()+"");
+//            currentUserAsMap.put("gender", currentUser.getGender());
+//            currentUserAsMap.put("username", currentUser.getUsername());
+//            currentUserAsMap.put("password", currentUser.getPassword());
+//            currentUserAsMap.put("description", currentUser.getDescription());
+//
+//            response = new Response(true, currentUserAsMap);
+//        }
+//        return response.isStatus() ?
+//                new ResponseEntity<>((Map<String, String>) response.getAddition(), HttpStatus.OK) :
+//                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+//    }
+//
+//
 
 
 //Пример:
