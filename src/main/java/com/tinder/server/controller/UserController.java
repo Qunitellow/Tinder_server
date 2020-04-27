@@ -15,15 +15,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.*;
-
 import static com.tinder.server.external.Support.*;
 
 @RestController
 public class UserController {
 
-    private final Set<String> loggedUsersname = new HashSet<>();
+    private String nameLoggedUser = null;
     private final Set<User> viewedFemaleProfiles = new HashSet<>();
     private final Set<User> viewedMaleProfiles = new HashSet<>();
     private final Set<User> profilesForUnauthorizedUser = new HashSet<>();
@@ -43,6 +41,7 @@ public class UserController {
         this.dislikeService = dislikeService;
         this.usersRepo = usersRepo;
     }
+
 
     @PostMapping("/register")
     public ResponseEntity<Object> addUser(@RequestBody Map<String, String> params) {
@@ -71,6 +70,7 @@ public class UserController {
                 new ResponseEntity<>(response.getAddition(), HttpStatus.BAD_REQUEST);
     }
 
+
     @PostMapping("/login")
     public ResponseEntity<Object> logInUser(@RequestBody Map<String, String> params) {
         Response response;
@@ -83,7 +83,8 @@ public class UserController {
         } else {
             log.debug("Пользователь {} существует: ", params.get("username"));
             if (existingUser.getPassword().equals(params.get("password"))) {
-                loggedUsersname.add(existingUser.getUsername());
+                nameLoggedUser = existingUser.getUsername();
+//                nameLoggedUser.add(existingUser.getUsername());
                 response = new Response(true, existingUser.getId());
                 log.debug("Пользователь {} авторизован: ", params.get("username"));
             } else {
@@ -97,13 +98,13 @@ public class UserController {
                 new ResponseEntity<>(response.getAddition().toString(), HttpStatus.UNAUTHORIZED);
     }
 
+
     @PutMapping("login/edit")
     public ResponseEntity<Object> changeDescription(@RequestBody String message) {
         log.debug("Редактирование информации о себе...");
         Response response;
-        String currentUserName = loggedUsersname.iterator().next();
-        if (!loggedUsersname.isEmpty()) {
-            User currentUser = userService.getUserByName(currentUserName);
+        if (nameLoggedUser != null) {
+            User currentUser = userService.getUserByName(nameLoggedUser);
             if (currentUser != null && isValidDescription(message)) {
                 try {
                     usersRepo.editDescription(currentUser.getId(), message);
@@ -127,18 +128,6 @@ public class UserController {
                 new ResponseEntity<>(response.getAddition().toString(), HttpStatus.BAD_REQUEST);
     }
 
-    //Пример контроллера:
-    //
-    //@Controller
-    //class FooController {
-    //       @RequestMapping("...")
-    //       void bar(@RequestBody String body, @RequestParam("baz") baz) {
-    //           //method body
-    //       }
-    //}
-
-    //@RequestBody : переменная body будет содержать тело HTTP-запроса
-    //@RequestParam : переменная baz будет содержать значение параметра запроса baz
 
     @PostMapping("login/edit/delete")
     public ResponseEntity<String> deleteUser(@RequestBody Long id) {
@@ -146,7 +135,7 @@ public class UserController {
         User currentUser = userService.getUserById(id);
         if (currentUser != null) {
             log.debug("Удаление учетной записи пользователя...");
-            loggedUsersname.remove(currentUser.getUsername());
+            nameLoggedUser = null;
             usersRepo.deleteUserById(id);
             response = new Response(true, "|| Ваша анкета удалена безвозвратно ||");
             log.debug("Удаление успешно");
@@ -161,69 +150,45 @@ public class UserController {
                 new ResponseEntity<>(response.getAddition().toString(), HttpStatus.BAD_REQUEST);
     }
 
-    @PostMapping("users/like/matching")
-    public ResponseEntity<Map<Integer, String>> matchedUsersByLikes(@RequestBody Map<String, String> likedUsersMap) {
+
+    @GetMapping("me/like/matching/{id}")
+    public ResponseEntity<Map<Integer, User>> matchedUsersByLikes(@PathVariable Long id) {
         log.debug("Получение списка пользователей ответивших взаимной симпатией...");
         Response response;
         Iterable<User> likeMatchUsers;
-        User currentUser = userService.getUserByName(loggedUsersname.iterator().next());
-        if (currentUser != null) {
-            likeMatchUsers = usersRepo.getAllLikeMatchedUsers(Long.parseLong(likedUsersMap.get("id")));
-            response = new Response(true, likeMatchUsersAsMap(likeMatchUsers));
-            log.debug("Список лайк-матчей получен");
+        likeMatchUsers = usersRepo.getAllLikeMatchedUsers(id);
+
+        if (likeMatchUsers == null) {
+            response = new Response(false, "матчей нет ((");
         } else {
-            response = new Response(false, "Вы не авторизованы");
-            log.debug("Вы не авторизованы");
+            log.debug("Список лайк-матчей получен");
+            response = new Response(true, likeMatchUsersAsMap(likeMatchUsers));
         }
         log.debug("Ответ на запрос о получении списка лайк-матчей: {}: {}",
                 response.isStatus(), response.getAddition());
         return response.isStatus() ?
-                new ResponseEntity<>((Map<Integer, String>) response.getAddition(), HttpStatus.CREATED) :
-                new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
+                new ResponseEntity<>((Map<Integer, User>) response.getAddition(), HttpStatus.OK) :
+                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
     }
 
-    public Map<Integer, String> likeMatchUsersAsMap(Iterable<User> likeMatchUsers) {
+    public Map<Integer, User> likeMatchUsersAsMap(Iterable<User> likeMatchUsers) {
         int i = 0;
-        Map<Integer, String> likedUsersMap = new HashMap<>();
-        likeMatchUsers.forEach(user -> likedUsersMap.put(i + 1, user.getUsername()));
+        Map<Integer, User> likedUsersMap = new HashMap<>();
+        likeMatchUsers.forEach(user -> likedUsersMap.put(i + 1, user));
         return likedUsersMap;
     }
 
-
-    @GetMapping("users/like/matching/{id}")
-    public ResponseEntity<Map<String, String>> getLikedUser(@RequestParam Long id) {
-//    public ResponseEntity<Object> getLikedUser(@PathVariable Long id) {
-        log.debug("Выбор пользователя из списка понравившихся...");
-        Response response;
-        User matchedUser = userService.getUserById(id);
-        if (matchedUser != null) {
-            Map<String, String> selectedProfile = new HashMap<>();
-            selectedProfile.put("username", matchedUser.getUsername());
-            selectedProfile.put("profileMessage", matchedUser.getDescription());
-            response = new Response(true, selectedProfile);
-            log.debug("Получен понравившийся юзер");
-        } else {
-            response = new Response(false, "Такого юзера нет");
-            log.debug("Такого юзера нет");
-        }
-        log.debug("Ответ на запрос о получении понравившегося юзера: {}: {}",
-                response.isStatus(), response.getAddition());
-        return response.isStatus() ?
-                new ResponseEntity<>((Map<String, String>) response.getAddition(), HttpStatus.OK) :
-                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
-    }
 
     @PostMapping("login/dislike")//влево
     public ResponseEntity<Object> putDislike(@RequestBody String s) {
 //    public ResponseEntity<Object> putDislike(@RequestBody Long id) {
         log.debug("Проявление антипатии...");
-        String loggedUsername = loggedUsersname.iterator().next();
+//        String loggedUsername = nameLoggedUser.iterator().next();
         Response response;
 //        User loggedUser = userService.getUserById(id);
-        if (loggedUsername != null) {
-//        if (loggedUser != null) {
-            User loggedUser = userService.getUserByName(loggedUsername);
-            User userForDislike = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(loggedUser.getId()), loggedUser);
+        if (nameLoggedUser != null) {
+            User loggedUser = userService.getUserByName(nameLoggedUser);
+            User userForDislike = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(loggedUser.getId()));
             Dislike dislike = new Dislike(loggedUser.getId(), userForDislike.getId());
             dislikeService.put_one(dislike);
             log.debug("добавили в БД дизлайк");
@@ -254,16 +219,15 @@ public class UserController {
                 new ResponseEntity<>(response.getAddition(), HttpStatus.UNAUTHORIZED);
     }
 
+
     @PostMapping("login/like")//вправо
     public ResponseEntity<Object> putLike(@RequestBody String s) {
         log.debug("Проявление симпатии...");
         Response response;
-        String loggedUsername = loggedUsersname.iterator().next();
-//        User loggedUser = userService.getUserById(id);
-
-        if (loggedUsername != null) {
-            User loggedUser = userService.getUserByName(loggedUsername);
-            User userForLike = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(loggedUser.getId()), loggedUser);
+//        String loggedUsername = nameLoggedUser.iterator().next();
+        if (nameLoggedUser != null) {
+            User loggedUser = userService.getUserByName(nameLoggedUser);
+            User userForLike = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(loggedUser.getId()));
             Like like = new Like(loggedUser.getId(), userForLike.getId());
             likeService.put_one(like);
             log.debug("добавили в БД лайк");
@@ -296,42 +260,32 @@ public class UserController {
 
 
     @PostMapping("login/users/next")
-    public ResponseEntity<Object> nextProfile(@RequestBody String s) {
+    public ResponseEntity<Object> nextProfileAuth(@RequestBody Long id) {
         log.debug("Получение следующего профиля...");
         Response response;
         User profileToDisplay;
-        String loggedUsername = loggedUsersname.iterator().next();
-        User loggedUser = usersRepo.findByUsername(loggedUsername).orElse(null);
 
-        if (loggedUser == null) {
-            log.debug("Получение для показа следующего профиля с НЕавторизованного юзера...");
-            profileToDisplay = getUnviewedProfile(usersRepo.findAll(), null);
-            profilesForUnauthorizedUser.add(profileToDisplay);
-            if (profilesForUnauthorizedUser.size() == usersRepo.getNumberOfAllUsers()) {
-                log.debug("Просмотрены все профили");
-                profilesForUnauthorizedUser.clear();
-            }
-            log.debug("Показан следующий случайный профиль. Вы не авторизованы" + s);
-            response = new Response(false, profileToDisplay.getUsername() + " " + profileToDisplay.getDescription());
-        } else {
             log.debug("Получение для показа следующего профиля с авторизованного юзера...");
             //исключить юзеров, удовлетворяющих кретериям, но которых уже показывали
-            profileToDisplay = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(loggedUser.getId()), loggedUser);
+            profileToDisplay = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(id));
+        if (profileToDisplay == null) {
+            response = new Response(false, "Нет профилей для просмотра");
+        } else {
+            log.debug("Показан следующий профиль");
+            response = new Response(true, profileToDisplay.getUsername() + " " + profileToDisplay.getDescription());
             if ((profileToDisplay.getGender()).equals("сударыня")) {
                 viewedFemaleProfiles.add(profileToDisplay);
-                if (viewedFemaleProfiles.size() == usersRepo.getNumberOfUsers(loggedUser.getId(), "сударыня")) {
+                if (viewedFemaleProfiles.size() == usersRepo.getNumberOfUsers(id, "сударыня")) {
                     log.debug("Просмотрены все женские профили");
                     viewedFemaleProfiles.clear();
                 }
             } else if ((profileToDisplay.getGender()).equals("сударь")) {
                 viewedMaleProfiles.add(profileToDisplay);
-                if (viewedMaleProfiles.size() == usersRepo.getNumberOfUsers(loggedUser.getId(), "сударь")) {
+                if (viewedMaleProfiles.size() == usersRepo.getNumberOfUsers(id, "сударь")) {
                     log.debug("Просмотрены все мужские профили");
                     viewedMaleProfiles.clear();
                 }
             }
-            log.debug("Показан следующий профиль противоположного пола");
-            response = new Response(true, profileToDisplay.getUsername() + " " + profileToDisplay.getDescription());
         }
         log.debug("Ответ на запрос для просмотра следующего профиля: {}: {}",
                 response.isStatus(), response.getAddition());
@@ -341,8 +295,38 @@ public class UserController {
     }
 
 
-    public User getUnviewedProfile(Iterable<User> profilesToDisplay, User loggedUser) {
+    @GetMapping("login/users/next")
+    public ResponseEntity<Object> nextProfileNoAuth(@RequestParam Long num) {
+        log.debug("Получение для показа следующего профиля " + num + " с НЕавторизованного юзера...");
+        Response response;
+        User profileToDisplay = getUnviewedProfile(usersRepo.findAll());
+        if (profileToDisplay == null) {
+            response = new Response(false, "Нет профилей для просмотра");
+        } else {
+            response = new Response(true, profileToDisplay.getUsername() + " " + profileToDisplay.getDescription());
+            log.debug("Показан следующий случайный профиль. Вы не авторизованы");
+            profilesForUnauthorizedUser.add(profileToDisplay);
+            if (profilesForUnauthorizedUser.size() == usersRepo.getNumberOfAllUsers()) {
+                log.debug("Просмотрены все профили");
+                profilesForUnauthorizedUser.clear();
+            }
+        }
+        log.debug("Ответ на запрос для просмотра следующего профиля: {}: {}",
+                response.isStatus(), response.getAddition());
+        return response.isStatus() ?
+                new ResponseEntity<>(response.getAddition(), HttpStatus.OK) :
+                new ResponseEntity<>(response.getAddition(), HttpStatus.UNAUTHORIZED);
+    }
+
+
+
+
+
+
+    public User getUnviewedProfile(Iterable<User> profilesToDisplay) {
         List<User> profilesToDisplayAsList = userService.getUsersAsList(profilesToDisplay);
+//        String loggedUsername = nameLoggedUser.iterator().next();
+        User loggedUser = userService.getUserByName(nameLoggedUser);
         if (loggedUser != null) {
             if (loggedUser.getGender().equals("сударь")) {
                 return profilesToDisplayAsList.stream()
@@ -375,4 +359,40 @@ public class UserController {
         }
         return true;
     }
+
+
+    //только для получения в клиенте авторизованного юзера
+    @GetMapping("login/currentuser")
+    public ResponseEntity<Map<String, String>> getCurrentUser(@RequestParam int num) {///убрать Requestparam
+        Response response;
+        log.info(num+"");
+        User currentUser = userService.getUserByName(nameLoggedUser);
+        if (currentUser == null) {
+            response = new Response(false);
+        } else {
+            Map<String, String> currentUserAsMap = new HashMap<>();
+            currentUserAsMap.put("id", currentUser.getId()+"");
+            currentUserAsMap.put("gender", currentUser.getGender());
+            currentUserAsMap.put("username", currentUser.getUsername());
+            currentUserAsMap.put("password", currentUser.getPassword());
+            currentUserAsMap.put("description", currentUser.getDescription());
+
+            response = new Response(true, currentUserAsMap);
+        }
+        return response.isStatus() ?
+                new ResponseEntity<>((Map<String, String>) response.getAddition(), HttpStatus.OK) :
+                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+    }
 }
+
+
+
+
+
+
+//Пример:
+//       @RequestMapping("...")
+//       void bar(@RequestBody String body, @RequestParam("baz") baz) {
+//           //method body
+//@RequestBody : переменная body будет содержать тело HTTP-запроса
+//@RequestParam : переменная baz будет содержать значение параметра запроса baz
