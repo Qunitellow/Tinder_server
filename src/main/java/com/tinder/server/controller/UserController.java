@@ -15,7 +15,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.*;
+
 import static com.tinder.server.external.Support.*;
 
 @RestController
@@ -265,9 +267,9 @@ public class UserController {
         Response response;
         User profileToDisplay;
 
-            log.debug("Получение для показа следующего профиля с авторизованного юзера...");
-            //исключить юзеров, удовлетворяющих кретериям, но которых уже показывали
-            profileToDisplay = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(id));
+        log.debug("Получение для показа следующего профиля с авторизованного юзера...");
+        //исключить юзеров, удовлетворяющих кретериям, но которых уже показывали
+        profileToDisplay = getUnviewedProfile(usersRepo.getAllUsersWithoutMe(id));
         if (profileToDisplay == null) {
             response = new Response(false, "Нет профилей для просмотра");
         } else {
@@ -319,10 +321,6 @@ public class UserController {
     }
 
 
-
-
-
-
     public User getUnviewedProfile(Iterable<User> profilesToDisplay) {
         List<User> profilesToDisplayAsList = userService.getUsersAsList(profilesToDisplay);
 //        String loggedUsername = nameLoggedUser.iterator().next();
@@ -361,66 +359,53 @@ public class UserController {
     }
 
 
-    //для получения в клиенте авторизованного юзера
-    @PostMapping("login/currentuser")
-    public ResponseEntity<User> getCurrentUser(@RequestBody Integer num) {
+    @GetMapping("login/currentuser")
+    public ResponseEntity<Map<String, String>> getCurrentUser(@RequestParam Integer num) {
         Response response;
         log.info(num+"");
         User currentUser = userService.getUserByName(nameLoggedUser);
         if (currentUser == null) {
-            response = new Response(false, null);
+            response = new Response(false);
         } else {
-            response = new Response(true, currentUser);
+            Map<String, String> currentUserAsMap = new HashMap<>();
+            currentUserAsMap.put("id", currentUser.getId() + "");
+            currentUserAsMap.put("gender", currentUser.getGender());
+            currentUserAsMap.put("username", currentUser.getUsername());
+            currentUserAsMap.put("password", currentUser.getPassword());
+            currentUserAsMap.put("description", currentUser.getDescription());
+
+            response = new Response(true, currentUserAsMap);
         }
         return response.isStatus() ?
-                new ResponseEntity<>((User) response.getAddition(), HttpStatus.OK) :
-                new ResponseEntity<>((User) response.getAddition(), HttpStatus.BAD_REQUEST);
+                new ResponseEntity<>((Map<String, String>) response.getAddition(), HttpStatus.OK) :
+                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
     }
 }
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//    @GetMapping("login/currentuser")
-//    public ResponseEntity<Map<String, String>> getCurrentUser(@RequestParam int num) {
+//    //для получения в клиенте авторизованного юзера
+//    @PostMapping("login/currentuser")
+//    public ResponseEntity<Map<String, String>> getCurrentUser(@RequestBody String num) {
 //        Response response;
-//        log.info(num+"");
+//        log.info(num);
 //        User currentUser = userService.getUserByName(nameLoggedUser);
 //        if (currentUser == null) {
 //            response = new Response(false);
 //        } else {
 //            Map<String, String> currentUserAsMap = new HashMap<>();
-//            currentUserAsMap.put("id", currentUser.getId()+"");
+//            currentUserAsMap.put("id", currentUser.getId() + "");
 //            currentUserAsMap.put("gender", currentUser.getGender());
 //            currentUserAsMap.put("username", currentUser.getUsername());
 //            currentUserAsMap.put("password", currentUser.getPassword());
 //            currentUserAsMap.put("description", currentUser.getDescription());
-//
 //            response = new Response(true, currentUserAsMap);
 //        }
 //        return response.isStatus() ?
 //                new ResponseEntity<>((Map<String, String>) response.getAddition(), HttpStatus.OK) :
 //                new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
 //    }
-//
-//
 
 
 //Пример:

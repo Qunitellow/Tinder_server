@@ -1,5 +1,6 @@
 package com.tinder.server.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import javax.persistence.*;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 @Data
 @Entity
 @RequiredArgsConstructor
+@AllArgsConstructor
 @Table(name = "USERS")
 public class User {
 
