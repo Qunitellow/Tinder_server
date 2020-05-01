@@ -3,6 +3,8 @@ package com.tinder.server.model;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import javax.persistence.*;
+
+import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 
 @Data
@@ -10,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @AllArgsConstructor
 @Table(name = "USERS")
+@EqualsAndHashCode
 public class User {
 
     @Id

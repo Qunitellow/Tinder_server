@@ -5,6 +5,7 @@ import com.tinder.server.repository.UsersRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -22,7 +23,7 @@ public class UserService {
         return userRepo.findAll();
     }
 
-    public User getUserById(long id) {
+    public User getUserById(Long id) {
         return userRepo.findById(id).orElse(null);
     }
 
@@ -34,7 +35,7 @@ public class UserService {
         userRepo.save(user);
     }
 
-    public void delete_one(long id) {
+    public void delete_one(Long id) {
         userRepo.deleteById(id);
     }
 
@@ -47,10 +48,15 @@ public class UserService {
         return false;
     }
 
-    public List<User> getUsersAsList(Iterable<User> matchingUsers){
-        List<User> userList = new LinkedList<>();
+    public List<User> getUsersAsList(Iterable<User> matchingUsers) {
+        List<User> userList = new ArrayList<>();
         matchingUsers.forEach(userList::add);
         return userList;
     }
 
+//    public List<Object> getObjAsList(Iterable<Object> matchingUsers) {
+//        List<Object> userList = new ArrayList<>();
+//        matchingUsers.forEach(userList::add);
+//        return userList;
+//    }
 }

@@ -12,14 +12,14 @@ public class Dislike {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "dislike_id")
-    private Long dislike_id;
+    private Long dislikeId;
     @Column(name = "dislike_by")
-    private Long dislike_by;
+    private Long byId;
     @Column(name = "dislike_to")
-    private Long dislike_to;
+    private Long toId;
 
-    public Dislike(Long dislike_by, Long dislike_to) {
-        this.dislike_by = dislike_by;
-        this.dislike_to = dislike_to;
+    public Dislike(Long byId, Long toId) {
+        this.byId = byId;
+        this.toId = toId;
     }
 }

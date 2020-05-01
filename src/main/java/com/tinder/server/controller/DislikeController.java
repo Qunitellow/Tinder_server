@@ -10,7 +10,8 @@ public class DislikeController {
 
     private final DislikeService service;
 
-    public DislikeController(@Autowired DislikeService service) {
+    @Autowired
+    public DislikeController(DislikeService service) {
         this.service = service;
     }
 

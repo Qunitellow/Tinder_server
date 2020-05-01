@@ -9,20 +9,27 @@ public class Support {
 
     public static boolean isValidUserInfo(Map<String, String> params) {
 
-        Pattern feildsProfilePattern = Pattern.compile("[A-Za-z0-9_:space:_]");
+        Pattern fieldsProfilePattern = Pattern.compile("([\\w\\sА-Яа-я]+)");
 
-        if (!params.get("sex").isEmpty() && !params.get("username").isEmpty()
-                && !params.get("password").isEmpty() && !params.get("profileMessage").isEmpty()) {
+        if (!params.get("gender").isEmpty() && !params.get("username").isEmpty()
+                && !params.get("password").isEmpty() && !params.get("description").isEmpty()) {
             return true;
-        } else if (params.get("sex").equals("сударь") || params.get("sex").equals("сударыня")) {
+        } else if (params.get("gender").equals("сударь") || params.get("gender").equals("сударыня")) {
             return true;
-        } else return feildsProfilePattern.matcher(params.get("username")).matches()
-                && feildsProfilePattern.matcher(params.get("password")).matches()
-                && isValidDescription(params.get("profileMessage"));
+        } else return fieldsProfilePattern.matcher(params.get("username")).matches()
+                && fieldsProfilePattern.matcher(params.get("password")).matches()
+                && isValidDescription(params.get("description"));
     }
 
-    public static boolean isValidDescription(String profileMessage) {
-        Pattern descriptionPattern = Pattern.compile("[A-Za-z0-9_:space:_]");
-        return descriptionPattern.matcher(profileMessage).matches();
+    public static boolean isValidDescription(String description) {
+        Pattern descriptionPattern = Pattern.compile("([\\w\\sА-Яа-я]+)");
+        return descriptionPattern.matcher(description).matches();
     }
+
+//    public static void main(String[] args) {
+//        String newDesc = "новое описание";
+//        boolean res = isValidDescription(newDesc);
+//        System.out.println(res);
+//    }
+
 }

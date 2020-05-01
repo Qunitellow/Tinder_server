@@ -9,6 +9,13 @@ INSERT INTO USERS (id, gender, username, password, description) VALUES ('6', 'с
 
 TRUNCATE TABLE LIKES AND COMMIT;
 
-INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('1', '1', '6');
-INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('2', '6', '1');
+INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('1', '1', '4');
+INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('2', '1', '5');
+INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('3', '1', '6');
+INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('4', '6', '1');
+INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('5', '5', '1');
+INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('6', '4', '1');
+INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('7', '2', '5');
+INSERT INTO LIKES (like_id, like_by, like_to) VALUES ('8', '5', '2');
 
+-- TRUNCATE TABLE DISLIKES AND COMMIT;

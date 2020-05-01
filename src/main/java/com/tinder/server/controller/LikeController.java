@@ -10,7 +10,8 @@ public class LikeController {
 
     private final LikeService service;
 
-    public LikeController(@Autowired LikeService service) {
+    @Autowired
+    public LikeController(LikeService service) {
         this.service = service;
     }
 

@@ -19,7 +19,7 @@ public class LikeService {
         return likeRepo.findAll();
     }
 
-    public Like getLikeById(long id) {
+    public Like getLikeById(Long id) {
         return likeRepo.findById(id).orElse(null);
     }
 
@@ -27,7 +27,7 @@ public class LikeService {
         likeRepo.save(like);
     }
 
-    public void delete_one(long id) {
+    public void delete_one(Long id) {
         likeRepo.deleteById(id);
     }
 }

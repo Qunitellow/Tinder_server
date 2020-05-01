@@ -12,14 +12,14 @@ public class Like {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "like_id")
-    private Long like_id;
+    private Long likeId;
     @Column(name = "like_by")
-    private Long like_by;
+    private Long byId;
     @Column(name = "like_to")
-    private Long like_to;
+    private Long toId;
 
-    public Like(Long like_by, Long like_to) {
-        this.like_by = like_by;
-        this.like_to = like_to;
+    public Like(Long byId, Long toId) {
+        this.byId = byId;
+        this.toId = toId;
     }
 }
