@@ -1,18 +1,14 @@
 package com.tinder.server.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import javax.persistence.*;
+import lombok.*;
 
-import lombok.EqualsAndHashCode;
-import lombok.RequiredArgsConstructor;
+import javax.persistence.*;
 
 @Data
 @Entity
 @RequiredArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "USERS")
-@EqualsAndHashCode
 public class User {
 
     @Id
@@ -20,19 +16,15 @@ public class User {
     @Column(name = "id")
     private Long id;
     @Column(name = "gender")
+    @NonNull
     private String gender;
     @Column(name = "username")
+    @NonNull
     private String username;
     @Column(name = "password")
+    @NonNull
     private String password;
     @Column(name = "description")
+    @NonNull
     private String description;
-
-    public User(String gender, String username, String password,
-                String description) {
-        this.gender = gender;
-        this.username = username;
-        this.password = password;
-        this.description = description;
-    }
 }
