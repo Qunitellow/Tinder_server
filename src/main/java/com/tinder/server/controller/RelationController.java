@@ -3,8 +3,8 @@ package com.tinder.server.controller;
 import com.tinder.server.external.Response;
 import com.tinder.server.model.User;
 import com.tinder.server.service.RelationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +15,7 @@ import java.util.Map;
 @RestController
 public class RelationController {
 
-    private static final Logger log = LoggerFactory.getLogger(RelationController.class);
+//    private static final Logger log = LoggerFactory.getLogger(RelationController.class);
     protected final RelationService relationService;
 
     @Autowired
@@ -57,7 +57,7 @@ public class RelationController {
 
     @GetMapping("login/users/next")
     public ResponseEntity<Map<String, String>> nextProfileNoAuth(@RequestParam Long num) {
-        log.debug("Получение для показа следующего профиля " + num + " с НЕавторизованного юзера...");
+//        log.debug("Получение для показа следующего профиля " + num + " с НЕавторизованного юзера...");
         Response response = relationService.responseNoAuthNext();
         return new ResponseEntity<>((Map<String, String>) response.getAddition(), HttpStatus.OK);
     }
